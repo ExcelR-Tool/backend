@@ -3,9 +3,6 @@ const TestRecord = require("../models/TestRecord");
 const Student = require("../models/Student");
 const moment = require("moment"); // optional for clean time formatting
 
-
-
-
 // 🔹 GET 25 Random MCQs Based on Student's Department → Year → Section
 exports.getRandomQuestions = async (req, res) => {
   try {
@@ -56,13 +53,14 @@ exports.getRandomQuestions = async (req, res) => {
 // 🔹 SUBMIT Test with Answer Validation
 exports.submitTest = async (req, res) => {
   try {
-    // ✅ Time restriction check inside the function
     const now = new Date();
-    const currentHour = now.getHours();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const nowIST = new Date(now.getTime() + istOffset);
+    const istHour = nowIST.getHours();
 
-    if (currentHour < 10 || currentHour >= 24) {
+    if (istHour < 10 || istHour >= 18) {
       return res.status(403).json({
-        message: "You can only submit the test between 10:00 AM and 6:00 PM."
+        message: "You can only submit the test between 10:00 AM and 6:00 PM IST."
       });
     }
 
@@ -73,10 +71,13 @@ exports.submitTest = async (req, res) => {
       return res.status(400).json({ message: "Answers and questionIds must be arrays of equal length." });
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    const istStart = new Date(nowIST);
+    istStart.setHours(0, 0, 0, 0);
+    const istEnd = new Date(nowIST);
+    istEnd.setHours(23, 59, 59, 999);
+
+    const todayStart = new Date(istStart.getTime() - istOffset);
+    const todayEnd = new Date(istEnd.getTime() - istOffset);
 
     const alreadySubmitted = await TestRecord.findOne({
       studentId,
@@ -115,8 +116,6 @@ exports.submitTest = async (req, res) => {
   }
 };
 
-
-
 // 🔹 GET All Test Results for the Logged-in Student
 exports.getStudentResults = async (req, res) => {
   try {
@@ -133,7 +132,6 @@ exports.getStudentResults = async (req, res) => {
   }
 };
 
-
 exports.getStudentResultSummary = async (req, res) => {
   try {
     const studentId = req.student.studentId;
@@ -149,15 +147,21 @@ exports.getStudentResultSummary = async (req, res) => {
   }
 };
 
-
 exports.resetTodayTestForStudent = async (req, res) => {
   try {
     const { studentId } = req.body;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const nowIST = new Date(now.getTime() + istOffset);
+
+    const istStart = new Date(nowIST);
+    istStart.setHours(0, 0, 0, 0);
+    const istEnd = new Date(nowIST);
+    istEnd.setHours(23, 59, 59, 999);
+
+    const todayStart = new Date(istStart.getTime() - istOffset);
+    const todayEnd = new Date(istEnd.getTime() - istOffset);
 
     const result = await TestRecord.deleteOne({
       studentId,
@@ -173,4 +177,3 @@ exports.resetTodayTestForStudent = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
