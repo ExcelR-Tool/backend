@@ -58,7 +58,7 @@ exports.submitTest = async (req, res) => {
     const nowIST = new Date(now.getTime() + istOffset);
     const istHour = nowIST.getHours();
 
-    if (istHour < 10 || istHour >= 18) {
+    if (istHour < 8 || istHour >= 19) {
       return res.status(403).json({
         message: "You can only submit the test between 10:00 AM and 6:00 PM IST."
       });
