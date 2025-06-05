@@ -1,8 +1,8 @@
 const MCQQuestion = require("../models/MCQQuestion");
-
 const xlsx = require("xlsx");
 const fs = require("fs");
 
+// 🔹 Upload MCQs from Excel
 exports.uploadMCQFromExcel = async (req, res) => {
   try {
     const filePath = req.file.path;
@@ -11,16 +11,15 @@ exports.uploadMCQFromExcel = async (req, res) => {
     const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
     const questions = data.map((row) => ({
-  companyId: row.companyId,
-  departmentId: row.departmentId,
-  yearId: row.yearId,
-  sectionId: row.sectionId,
-  subject: row.subject,
-  question: row.question,
-  options: [row.option1, row.option2, row.option3, row.option4],
-  correctAnswerIndex: row.correctAnswerIndex
-}));
-
+      companyId: row.companyId,
+      departmentId: row.departmentId,
+      yearId: row.yearId,
+      sectionId: row.sectionId,
+      subject: row.subject,
+      question: row.question,
+      options: [row.option1, row.option2, row.option3, row.option4],
+      correctAnswerIndex: row.correctAnswerIndex
+    }));
 
     await MCQQuestion.insertMany(questions);
     fs.unlinkSync(filePath); // delete file after upload
@@ -31,12 +30,19 @@ exports.uploadMCQFromExcel = async (req, res) => {
   }
 };
 
-
-
-
+// 🔹 Upload Single MCQ (Updated)
 exports.uploadMCQ = async (req, res) => {
   try {
-    const { companyId, subject, question, options, correctAnswerIndex } = req.body;
+    const {
+      companyId,
+      departmentId,
+      yearId,
+      sectionId,
+      subject,
+      question,
+      options,
+      correctAnswerIndex
+    } = req.body;
 
     if (!Array.isArray(options) || options.length !== 4) {
       return res.status(400).json({ message: "Exactly 4 options are required." });
@@ -44,6 +50,9 @@ exports.uploadMCQ = async (req, res) => {
 
     const newQuestion = new MCQQuestion({
       companyId,
+      departmentId,
+      yearId,
+      sectionId,
       subject,
       question,
       options,
@@ -57,6 +66,7 @@ exports.uploadMCQ = async (req, res) => {
   }
 };
 
+// 🔹 Get All MCQs
 exports.getAllMCQs = async (req, res) => {
   try {
     const mcqs = await MCQQuestion.find();
