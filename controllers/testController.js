@@ -1,7 +1,7 @@
 const MCQQuestion = require("../models/MCQQuestion");
 const TestRecord = require("../models/TestRecord");
 const Student = require("../models/Student");
-const moment = require("moment"); // optional for clean time formatting
+const moment = require("moment");
 
 // 🔹 GET 25 Random MCQs Based on Student's Department → Year → Section
 exports.getRandomQuestions = async (req, res) => {
@@ -132,13 +132,14 @@ exports.getStudentResults = async (req, res) => {
   }
 };
 
+// 🔹 GET Result Summary
 exports.getStudentResultSummary = async (req, res) => {
   try {
     const studentId = req.student.studentId;
 
     const results = await TestRecord.find({ studentId })
       .sort({ date: -1 })
-      .select("date score -_id"); // Only return date & score
+      .select("date score -_id");
 
     res.status(200).json(results);
   } catch (err) {
@@ -147,6 +148,7 @@ exports.getStudentResultSummary = async (req, res) => {
   }
 };
 
+// 🔹 RESET Today's Test for a Student
 exports.resetTodayTestForStudent = async (req, res) => {
   try {
     const { studentId } = req.body;
@@ -175,5 +177,64 @@ exports.resetTodayTestForStudent = async (req, res) => {
     res.status(200).json({ message: "Today's test reset successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// 🔹 ADMIN: View Reports Based on Filters
+exports.getAdminReport = async (req, res) => {
+  try {
+    const { department, year, section, date } = req.body;
+
+    const query = date ? {
+      date: {
+        $gte: new Date(`${date}T00:00:00.000Z`),
+        $lte: new Date(`${date}T23:59:59.999Z`)
+      }
+    } : {};
+
+    const students = await Student.find()
+      .populate({
+        path: "sectionId",
+        match: { sectionLabel: section },
+        populate: {
+          path: "yearId",
+          match: { yearLabel: year },
+          populate: {
+            path: "departmentId",
+            match: { name: department }
+          }
+        }
+      });
+
+    const validStudentIds = students
+      .filter(s => s.sectionId && s.sectionId.yearId && s.sectionId.yearId.departmentId)
+      .map(s => s._id);
+
+    const testRecords = await TestRecord.find({ studentId: { $in: validStudentIds }, ...query })
+      .populate("studentId");
+
+    const response = testRecords.map(r => ({
+      name: r.studentId.name,
+      rollNo: r.studentId.rollNumber,
+      date: r.date.toISOString().slice(0, 10),
+      score: r.score,
+      correctAnswers: r.selectedAnswers?.filter((_, i) => r.selectedAnswers[i] === r.questionIds[i])?.length || 'N/A',
+      wrongAnswers: 'N/A' // Add calculation if needed
+    }));
+
+    res.json(response);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to fetch reports" });
+  }
+};
+
+
+
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await Student.find({}, 'name rollNumber email');
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch students' });
   }
 };
